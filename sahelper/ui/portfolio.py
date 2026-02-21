@@ -71,6 +71,8 @@ from sahelper.services.automation import AutomationService
 import asyncio
 from qasync import asyncSlot
 
+from .styles import AppColors, AppStyles
+
 class PortfolioWidget(QWidget):
     """Professional grid view for portfolio holdings."""
     def __init__(self):
@@ -81,10 +83,13 @@ class PortfolioWidget(QWidget):
 
     def init_ui(self):
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
 
         # 1. Header Area
         header_layout = QHBoxLayout()
-        self.lbl_title = QLabel("<h2>My Portfolio</h2>")
+        self.lbl_title = QLabel("My Portfolio")
+        self.lbl_title.setStyleSheet(f"font-size: 24px; font-weight: 700; color: {AppColors.TEXT_PRIMARY};")
         header_layout.addWidget(self.lbl_title)
         header_layout.addStretch()
         
@@ -94,28 +99,103 @@ class PortfolioWidget(QWidget):
         self.input_url.setText("https://seekingalpha.com/account/portfolio/summary?portfolioId=62720994")
         self.input_url.setMinimumWidth(400)
         self.input_url.setPlaceholderText("Enter Seeking Alpha Portfolio Summary URL...")
+        self.input_url.setStyleSheet(AppStyles.INPUT)
         header_layout.addWidget(self.input_url)
 
         self.btn_sync = QPushButton("Sync with Seeking Alpha")
         self.btn_sync.clicked.connect(self.on_sync_clicked)
-        self.btn_sync.setStyleSheet("padding: 8px 15px; background-color: #007acc; color: white;")
+        self.btn_sync.setStyleSheet(AppStyles.BUTTON_PRIMARY)
         header_layout.addWidget(self.btn_sync)
 
         self.btn_clear = QPushButton("Clear All Data")
         self.btn_clear.clicked.connect(self.on_clear_clicked)
-        self.btn_clear.setStyleSheet("padding: 8px 15px; background-color: #ff4444; color: white;")
+        # Custom red style for clear button
+        self.btn_clear.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {AppColors.ACCENT_RED};
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: #d50000;
+            }}
+        """)
         header_layout.addWidget(self.btn_clear)
 
         layout.addLayout(header_layout)
 
+        # 2. Main Content: Table + Side Detail
+        content_h = QHBoxLayout()
+        content_h.setSpacing(20)
+        
         # 3. Data Table
         self.table_view = QTableView()
         self.table_view.setAlternatingRowColors(True)
         self.table_view.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
+        self.table_view.verticalHeader().setVisible(False)
+        self.table_view.setShowGrid(False) # Cleaner look
+        self.table_view.setStyleSheet(AppStyles.TABLE)
+        
         header = self.table_view.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table_view.clicked.connect(self.on_row_selected)
         
-        layout.addWidget(self.table_view)
+        content_h.addWidget(self.table_view, 7) # 70% width
+
+        # 4. Side Detail Panel
+        self.detail_panel = QFrame()
+        self.detail_panel.setFixedWidth(320)
+        self.detail_panel.setStyleSheet(f"""
+            QFrame {{
+                background-color: {AppColors.BG_SIDEBAR};
+                border-left: 1px solid {AppColors.BORDER};
+            }}
+        """)
+        detail_layout = QVBoxLayout(self.detail_panel)
+        detail_layout.setContentsMargins(20, 20, 20, 20)
+        
+        self.lbl_detail_ticker = QLabel("Select a Ticker")
+        self.lbl_detail_ticker.setStyleSheet(f"font-size: 20px; font-weight: 700; color: {AppColors.TEXT_PRIMARY};")
+        detail_layout.addWidget(self.lbl_detail_ticker)
+        
+        from .charts import StockChartWidget
+        self.detail_chart = StockChartWidget(title="Price Trend", background=AppColors.BG_SIDEBAR)
+        detail_layout.addWidget(self.detail_chart)
+        
+        self.lbl_detail_stats = QLabel("Performance details will appear here.")
+        self.lbl_detail_stats.setWordWrap(True)
+        self.lbl_detail_stats.setStyleSheet(f"color: {AppColors.TEXT_SECONDARY}; line-height: 1.4; font-size: 13px;")
+        detail_layout.addWidget(self.lbl_detail_stats)
+        
+        detail_layout.addStretch()
+        content_h.addWidget(self.detail_panel, 3) # 30% width
+
+        layout.addLayout(content_h)
+
+    def on_row_selected(self, index: QModelIndex):
+        """Update detail panel when a portfolio row is clicked."""
+        row = index.row()
+        item = self.model._data[row]
+        ticker = item.get("ticker")
+        
+        self.lbl_detail_ticker.setText(ticker)
+        
+        # Mock history for the detail chart
+        import random
+        base = item.get("current_price", 100)
+        mock_history = [base * (1 + (random.random() - 0.5) * 0.1) for _ in range(50)]
+        self.detail_chart.update_chart(mock_history)
+        
+        stats_text = (
+            f"<p><b>Quantity:</b> <span style='color: white;'>{item.get('quantity')}</span></p>"
+            f"<p><b>Avg Cost:</b> <span style='color: white;'>${item.get('avg_cost'):.2f}</span></p>"
+            f"<p><b>Current Price:</b> <span style='color: white;'>${item.get('current_price'):.2f}</span></p>"
+            f"<p><b>Change:</b> <span style='color: {AppColors.ACCENT_GREEN if item.get('change_pct',0) > 0 else AppColors.ACCENT_RED};'>{item.get('change_pct')*100:+.2f}%</span></p>"
+        )
+        self.lbl_detail_stats.setText(stats_text)
 
     def refresh_data(self):
         """Fetch data from local SQLite and update the table with validation metrics."""

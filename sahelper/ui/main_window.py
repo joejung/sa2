@@ -2,13 +2,15 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QStackedWidget
 )
 from PyQt6.QtCore import Qt
+from .styles import AppStyles
 
 class SAHelperWindow(QMainWindow):
     """The main application shell."""
     def __init__(self):
         super().__init__()
         self.setWindowTitle("SAHelper - Enterprise Edition")
-        self.setMinimumSize(1000, 700)
+        self.setMinimumSize(1200, 800)
+        self.setStyleSheet(AppStyles.MAIN_WINDOW) # Apply global styles
 
         self.init_ui()
 
@@ -22,26 +24,19 @@ class SAHelperWindow(QMainWindow):
 
         # 2. Sidebar (Navigation)
         self.sidebar = QListWidget()
-        self.sidebar.setFixedWidth(200)
-        self.sidebar.setStyleSheet("""
-            QListWidget {
-                border-right: 1px solid #444;
-                font-size: 14px;
-                padding-top: 20px;
-                background-color: #2b2b2b;
-            }
-            QListWidget::item {
-                padding: 10px;
-                color: #ccc;
-            }
-            QListWidget::item:selected {
-                background-color: #007acc;
-                color: white;
-            }
-        """)
-        self.sidebar.addItems(["Dashboard", "My Portfolios", "Analysis", "Automation", "Settings"])
-        self.sidebar.currentRowChanged.connect(self.on_nav_changed)
-
+        self.sidebar.setFixedWidth(240) # Slightly wider for better text flow
+        self.sidebar.setStyleSheet(AppStyles.SIDEBAR)
+        
+        # Add items with icons
+        items = [
+            "📊 Overview", 
+            "🌍 Market", 
+            "💼 Portfolios", 
+            "📈 Analysis", 
+            "🤖 Automation", 
+            "⚙️ Settings"
+        ]
+        self.sidebar.addItems(items)
         main_layout.addWidget(self.sidebar)
 
         # 3. Content Area (Stacked Widget)
@@ -50,26 +45,37 @@ class SAHelperWindow(QMainWindow):
 
         # 4. Load Views
         self.setup_views()
+        
+        # 5. Connect Navigation & Set Default (After Stack is Ready)
+        self.sidebar.currentRowChanged.connect(self.on_nav_changed)
+        self.sidebar.setCurrentRow(0) 
 
     def setup_views(self):
-        # Dashboard View (Macro Overview)
-        from .macro import MacroWidget
-        self.view_dashboard = MacroWidget()
-        self.content_stack.addWidget(self.view_dashboard)
+        # 0. Overview (Dashboard)
+        from .dashboard import DashboardWidget
+        self.view_overview = DashboardWidget()
+        self.content_stack.addWidget(self.view_overview)
 
-        # Portfolio View
+        # 1. Market (Macro Overview)
+        from .macro import MacroWidget
+        self.view_market = MacroWidget()
+        self.content_stack.addWidget(self.view_market)
+
+        # 2. Portfolio View
         from .portfolio import PortfolioWidget
         self.view_portfolios = PortfolioWidget()
         self.content_stack.addWidget(self.view_portfolios)
 
-        # Analysis View
+        # 3. Analysis View
         from .analysis import StockDetailWidget
         self.view_analysis = StockDetailWidget()
         self.content_stack.addWidget(self.view_analysis)
 
+        # 4. Automation
         self.view_automation = QWidget()
         self.content_stack.addWidget(self.view_automation)
 
+        # 5. Settings
         self.view_settings = QWidget()
         self.content_stack.addWidget(self.view_settings)
         

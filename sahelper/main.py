@@ -29,7 +29,27 @@ def main():
     # Start Institutional Data Feed
     from sahelper.services.market_data import MarketDataService
     market_service = MarketDataService()
-    market_service.data_updated.connect(window.view_dashboard.update_macro_data)
+    
+    # 1. Update Macro Dashboard (Index Cards/Sparklines)
+    market_service.data_updated.connect(window.view_market.update_macro_data)
+    
+    # 2. Update Overview Dashboard (Portfolio Chart)
+    def update_overview(data):
+        if data:
+            spy = data[0] # SPY
+            window.view_overview.update_performance(spy["history"])
+    market_service.data_updated.connect(update_overview)
+
+    # 3. Update Analysis View (Detailed Chart)
+    def update_analysis(data):
+        # Update first ticker in data for analysis (for demo purposes)
+        if data:
+            target = data[0] # SPY
+            window.view_analysis.set_ticker(target["ticker"])
+            window.view_analysis.update_data(target["value"], target["change"], target["history"])
+    
+    market_service.data_updated.connect(update_analysis)
+    
     loop.create_task(market_service.run_live_feed())
     
     with loop:
