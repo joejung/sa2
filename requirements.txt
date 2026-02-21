@@ -1,0 +1,8 @@
+PyQt6
+playwright
+python-dotenv
+qasync
+pandas
+sqlalchemy
+qt-material
+pytest

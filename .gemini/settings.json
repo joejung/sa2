@@ -1,0 +1,23 @@
+{
+  "experimental": {
+    "enableAgents": true
+  },
+  "mcpServers": {
+    "playwright": {
+      "command": "npx -y @modelcontextprotocol/server-playwright",
+      "args": []
+    },
+    "context7": {
+      "command": "npx -y @upstash/context7-mcp",
+      "args": []
+    },
+    "fetch": {
+      "command": "npx -y @modelcontextprotocol/server-fetch",
+      "args": []
+    },
+    "sequential-thinking": {
+      "command": "npx -y @modelcontextprotocol/server-sequential-thinking",
+      "args": []
+    }
+  }
+}
