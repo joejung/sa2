@@ -18,9 +18,9 @@ class StockDetailWidget(QWidget):
         self.service.fundamentals_ready.connect(self.on_fundamentals)
         self.service.news_ready.connect(self.on_news)
         
-        self.init_ui()
         self.current_indicators = {}
         self.indicator_checkboxes = {}
+        self.init_ui()
 
     def init_ui(self):
         layout = QVBoxLayout(self)

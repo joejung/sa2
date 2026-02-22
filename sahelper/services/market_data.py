@@ -18,14 +18,22 @@ class MarketDataService(QObject):
         super().__init__()
         self.analyzer = SentimentIntensityAnalyzer()
         self.tickers = [
-            {"name": "S&P 500", "ticker": "SPY"},
-            {"name": "Nasdaq 100", "ticker": "QQQ"},
-            {"name": "Russell 2000", "ticker": "IWM"},
-            {"name": "Volatility", "ticker": "^VIX"},
-            {"name": "US 10Y Yield", "ticker": "^TNX"},
-            {"name": "DXY Index", "ticker": "DX-Y.NYB"}
+            {"name": "S&P 500", "ticker": "SPY", "history": [100.0 + random.uniform(-1, 1) for _ in range(50)]},
+            {"name": "Nasdaq 100", "ticker": "QQQ", "history": [100.0 + random.uniform(-1, 1) for _ in range(50)]},
+            {"name": "Russell 2000", "ticker": "IWM", "history": [100.0 + random.uniform(-1, 1) for _ in range(50)]},
+            {"name": "Volatility", "ticker": "^VIX", "history": [100.0 + random.uniform(-1, 1) for _ in range(50)]},
+            {"name": "US 10Y Yield", "ticker": "^TNX", "history": [100.0 + random.uniform(-1, 1) for _ in range(50)]},
+            {"name": "DXY Index", "ticker": "DX-Y.NYB", "history": [100.0 + random.uniform(-1, 1) for _ in range(50)]}
         ]
         self.cache = {} # Store last known good data
+        for t in self.tickers:
+            self.cache[t["ticker"]] = {
+                "name": t["name"],
+                "ticker": t["ticker"],
+                "value": t["history"][-1],
+                "change_pct": 0.0,
+                "history": list(t["history"])
+            }
 
     async def fetch_global_news(self):
         """Fetch news from major indices and aggregate."""
@@ -58,26 +66,18 @@ class MarketDataService(QObject):
             except Exception as e:
                 logger.error(f"Failed to fetch news for {symbol}: {e}")
         
-        # Sort by latest (yfinance news usually comes in order, but we aggregate)
-        # We don't have timestamps easily but we can just emit what we have
-        self.news_updated.emit(news_aggregated[:15]) # Return top 15
+        self.news_updated.emit(news_aggregated[:15])
 
-    async def run_live_feed(self):
-        """Infinite loop fetching real data."""
-        # 1. Initial Population
-        logger.info("Initializing market data feed...")
-        await self.fetch_global_news() # Initial news
+    async def fetch_history(self, ticker_symbol):
         """Fetch 1 month of history for sparklines."""
         try:
             loop = asyncio.get_event_loop()
-            # Run blocking yfinance call in a thread
             ticker = await loop.run_in_executor(None, yf.Ticker, ticker_symbol)
             hist = await loop.run_in_executor(None, lambda: ticker.history(period="1mo", interval="1d"))
             
             if hist.empty:
                 return []
             
-            # Return list of closing prices
             return hist['Close'].tolist()
         except Exception as e:
             logger.error(f"Failed to fetch history for {ticker_symbol}: {e}")
@@ -87,9 +87,7 @@ class MarketDataService(QObject):
         """Fetch the absolute latest price."""
         try:
             loop = asyncio.get_event_loop()
-            # fast_info is often faster/more reliable for current price than history
             ticker = await loop.run_in_executor(None, yf.Ticker, ticker_symbol)
-            # Try fast_info first, fallback to history
             info = ticker.fast_info
             price = info.last_price
             prev_close = info.previous_close
@@ -103,30 +101,30 @@ class MarketDataService(QObject):
 
     async def run_live_feed(self):
         """Infinite loop fetching real data."""
-        # 1. Initial Population
         logger.info("Initializing market data feed...")
+        await self.fetch_global_news() # Initial news
+        
+        # Initial Population from YFinance
         for t in self.tickers:
-            history = await self.fetch_history(t["ticker"])
-            price, change_pct = await self.get_latest_price(t["ticker"])
+            symbol = t["ticker"]
+            history = await self.fetch_history(symbol)
+            price, change_pct = await self.get_latest_price(symbol)
             
             if price is None and history:
                 price = history[-1]
                 change_pct = 0.0
             elif price is None:
-                price = 100.0 # Fallback
+                price = self.cache[symbol]["value"]
                 change_pct = 0.0
 
-            self.cache[t["ticker"]] = {
-                "name": t["name"],
-                "ticker": t["ticker"],
-                "value": price,
-                "change_pct": change_pct,
-                "history": history
-            }
+            if history:
+                self.cache[symbol]["history"] = history
+            
+            self.cache[symbol]["value"] = price
+            self.cache[symbol]["change_pct"] = change_pct
 
         iteration = 0
         while True:
-            # Refresh news every 20 iterations (approx 5 mins if 15s sleep)
             if iteration % 20 == 0 and iteration > 0:
                 asyncio.create_task(self.fetch_global_news())
             
@@ -141,9 +139,6 @@ class MarketDataService(QObject):
                 if price is not None:
                     cached["value"] = price
                     cached["change_pct"] = change_pct
-                    # Append to history for live feel (optional, simplistic)
-                    # For a sparkline, we might just want to update the last point or append if it's a new day.
-                    # For simplicity, we just keep the history as is or append the live price.
                     if cached["history"] and price != cached["history"][-1]:
                          cached["history"].append(price)
                          if len(cached["history"]) > 100: cached["history"].pop(0)
@@ -157,4 +152,5 @@ class MarketDataService(QObject):
                 })
             
             self.data_updated.emit(updated_data)
-            await asyncio.sleep(15) # Poll every 15s to respect API limits
+            await asyncio.sleep(15) 
+            iteration += 1
