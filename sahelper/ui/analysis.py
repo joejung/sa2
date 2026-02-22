@@ -1,6 +1,6 @@
 import asyncio
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QScrollArea, QGridLayout, QListWidget, QListWidgetItem
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QScrollArea, QGridLayout, QListWidget, QListWidgetItem, QCheckBox
 )
 from PyQt6.QtCore import Qt, pyqtSlot
 
@@ -20,6 +20,7 @@ class StockDetailWidget(QWidget):
         
         self.init_ui()
         self.current_indicators = {}
+        self.indicator_checkboxes = {}
 
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -52,7 +53,7 @@ class StockDetailWidget(QWidget):
 
         # 2. Middle Section: Advanced Chart
         chart_frame = QFrame()
-        chart_frame.setMinimumHeight(400)
+        chart_frame.setMinimumHeight(450)
         chart_frame.setStyleSheet(f"background-color: {AppColors.BG_CARD}; border: 1px solid {AppColors.BORDER}; border-radius: 10px;")
         chart_layout = QVBoxLayout(chart_frame)
         chart_layout.setContentsMargins(15, 15, 15, 15)
@@ -60,10 +61,26 @@ class StockDetailWidget(QWidget):
         # Indicator Toggles (Quick)
         toggles_layout = QHBoxLayout()
         self.lbl_indicators = QLabel("Technical Indicators: ")
-        self.lbl_indicators.setStyleSheet(f"color: {AppColors.TEXT_SECONDARY}; font-size: 12px;")
+        self.lbl_indicators.setStyleSheet(f"color: {AppColors.TEXT_SECONDARY}; font-size: 12px; font-weight: bold;")
         toggles_layout.addWidget(self.lbl_indicators)
         
-        # We can add actual checkboxes here later if needed
+        # Define supported indicators
+        indicators_meta = [
+            ("SMA20", "#2196F3"),
+            ("SMA50", "#ff9800"),
+            ("SMA200", "#f44336"),
+            ("EMA20", "#9c27b0"),
+            ("BB", "#00bcd4")
+        ]
+
+        for name, color in indicators_meta:
+            cb = QCheckBox(name)
+            cb.setStyleSheet(f"color: {color}; font-size: 11px; font-weight: bold;")
+            cb.toggled.connect(lambda checked, n=name: self.toggle_indicator(n, checked))
+            toggles_layout.addWidget(cb)
+            self.indicator_checkboxes[name] = cb
+
+        toggles_layout.addStretch()
         chart_layout.addLayout(toggles_layout)
 
         self.price_chart = AdvancedChartWidget(title="Performance History")
@@ -93,13 +110,30 @@ class StockDetailWidget(QWidget):
         self.lbl_price.setText("...")
         self.news_list.clear()
         self.current_indicators = {}
+        self.price_chart.clear_indicators()
         
+        # Reset checkboxes
+        for cb in self.indicator_checkboxes.values():
+            cb.blockSignals(True)
+            cb.setChecked(False)
+            cb.blockSignals(False)
+
         # Clear old metrics
         for i in reversed(range(self.metrics_layout.count())): 
             self.metrics_layout.itemAt(i).widget().setParent(None)
 
         # Async fetch
         asyncio.create_task(self.service.fetch_analysis_data(ticker))
+
+    def toggle_indicator(self, name, checked):
+        if not self.current_indicators: return
+        
+        if name == "BB":
+            self.price_chart.set_indicator_visibility("BB_Upper", checked)
+            self.price_chart.set_indicator_visibility("BB_Middle", checked)
+            self.price_chart.set_indicator_visibility("BB_Lower", checked)
+        else:
+            self.price_chart.set_indicator_visibility(name, checked)
 
     @pyqtSlot(list, list)
     def on_chart_data(self, ohlc, dates):
@@ -111,11 +145,25 @@ class StockDetailWidget(QWidget):
     @pyqtSlot(dict)
     def on_indicators(self, indicators):
         self.current_indicators = indicators
-        # Auto-plot SMA50 and SMA200 for professional look
-        if "SMA50" in indicators:
-            self.price_chart.add_indicator("SMA50", indicators["SMA50"], color="#ff9800") # Amber
-        if "SMA200" in indicators:
-            self.price_chart.add_indicator("SMA200", indicators["SMA200"], color="#f44336") # Deep Red
+        
+        # Add all indicators to chart (hidden by default)
+        colors = {
+            "SMA20": "#2196F3",
+            "SMA50": "#ff9800",
+            "SMA200": "#f44336",
+            "EMA20": "#9c27b0",
+            "BB_Upper": "#00bcd4",
+            "BB_Middle": "#00bcd4",
+            "BB_Lower": "#00bcd4"
+        }
+
+        for name, data in indicators.items():
+            if name in colors:
+                self.price_chart.add_indicator(name, data, color=colors[name], visible=False)
+        
+        # Default view: SMA50 and SMA200
+        self.indicator_checkboxes["SMA50"].setChecked(True)
+        self.indicator_checkboxes["SMA200"].setChecked(True)
 
     @pyqtSlot(dict)
     def on_fundamentals(self, data):

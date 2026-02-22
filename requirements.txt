@@ -9,3 +9,5 @@ pytest
 pyqtgraph
 numpy
 yfinance
+vaderSentiment
+openpyxl

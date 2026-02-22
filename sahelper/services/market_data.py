@@ -5,14 +5,18 @@ import yfinance as yf
 import pandas as pd
 from PyQt6.QtCore import QObject, pyqtSignal
 
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
 logger = logging.getLogger(__name__)
 
 class MarketDataService(QObject):
     """Institutional Market Data Feed (Powered by yfinance)."""
     data_updated = pyqtSignal(list)
+    news_updated = pyqtSignal(list)
 
     def __init__(self):
         super().__init__()
+        self.analyzer = SentimentIntensityAnalyzer()
         self.tickers = [
             {"name": "S&P 500", "ticker": "SPY"},
             {"name": "Nasdaq 100", "ticker": "QQQ"},
@@ -23,7 +27,46 @@ class MarketDataService(QObject):
         ]
         self.cache = {} # Store last known good data
 
-    async def fetch_history(self, ticker_symbol):
+    async def fetch_global_news(self):
+        """Fetch news from major indices and aggregate."""
+        news_aggregated = []
+        seen_titles = set()
+        
+        loop = asyncio.get_event_loop()
+        for symbol in ["SPY", "QQQ", "DIA"]:
+            try:
+                ticker = await loop.run_in_executor(None, yf.Ticker, symbol)
+                news = ticker.news
+                if news:
+                    for item in news:
+                        title = item.get("title", "")
+                        if title in seen_titles: continue
+                        seen_titles.add(title)
+                        
+                        vs = self.analyzer.polarity_scores(title)
+                        sentiment = "Neutral"
+                        if vs['compound'] >= 0.05: sentiment = "Bullish"
+                        elif vs['compound'] <= -0.05: sentiment = "Bearish"
+                        
+                        news_aggregated.append({
+                            "title": title,
+                            "publisher": item.get("publisher"),
+                            "link": item.get("link"),
+                            "sentiment": sentiment,
+                            "score": vs['compound']
+                        })
+            except Exception as e:
+                logger.error(f"Failed to fetch news for {symbol}: {e}")
+        
+        # Sort by latest (yfinance news usually comes in order, but we aggregate)
+        # We don't have timestamps easily but we can just emit what we have
+        self.news_updated.emit(news_aggregated[:15]) # Return top 15
+
+    async def run_live_feed(self):
+        """Infinite loop fetching real data."""
+        # 1. Initial Population
+        logger.info("Initializing market data feed...")
+        await self.fetch_global_news() # Initial news
         """Fetch 1 month of history for sparklines."""
         try:
             loop = asyncio.get_event_loop()
@@ -81,7 +124,12 @@ class MarketDataService(QObject):
                 "history": history
             }
 
+        iteration = 0
         while True:
+            # Refresh news every 20 iterations (approx 5 mins if 15s sleep)
+            if iteration % 20 == 0 and iteration > 0:
+                asyncio.create_task(self.fetch_global_news())
+            
             updated_data = []
             for t in self.tickers:
                 symbol = t["ticker"]

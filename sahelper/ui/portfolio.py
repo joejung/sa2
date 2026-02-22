@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QLineEdit, QLabel, QFrame, QMessageBox
 )
 from PyQt6.QtCore import Qt, QAbstractTableModel, QModelIndex, pyqtSlot
+from PyQt6.QtGui import QColor
 
 class PortfolioModel(QAbstractTableModel):
     """Institutional Data model for the Portfolio Table View."""
@@ -49,12 +50,10 @@ class PortfolioModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.ForegroundRole:
             if col in [4, 5]:
                 val = item.get('change_pct', 0)
-                from PyQt6.QtGui import QColor
                 if val > 0: return QColor("#00ff88") # Emerald
                 if val < 0: return QColor("#ff4444") # Crimson
             if col == 7:
                 rating = item.get("rating", "")
-                from PyQt6.QtGui import QColor
                 if "BUY" in rating: return QColor("#00ff88")
                 if "SELL" in rating: return QColor("#ff4444")
 
@@ -129,6 +128,23 @@ class PortfolioWidget(QWidget):
         """)
         header_layout.addWidget(self.btn_risk)
 
+        self.btn_heatmap = QPushButton("Toggle Heatmap")
+        self.btn_heatmap.clicked.connect(self.on_toggle_heatmap)
+        self.btn_heatmap.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {AppColors.BG_CARD};
+                color: {AppColors.TEXT_PRIMARY};
+                border: 1px solid {AppColors.BORDER};
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: {AppColors.BG_INPUT};
+            }}
+        """)
+        header_layout.addWidget(self.btn_heatmap)
+
         self.btn_clear = QPushButton("Clear All Data")
         self.btn_clear.clicked.connect(self.on_clear_clicked)
         # Custom red style for clear button
@@ -148,6 +164,12 @@ class PortfolioWidget(QWidget):
         header_layout.addWidget(self.btn_clear)
 
         layout.addLayout(header_layout)
+
+        # 1.5 Heatmap Area (Togglable)
+        from .heatmap import PortfolioHeatmapWidget
+        self.heatmap = PortfolioHeatmapWidget()
+        self.heatmap.setVisible(False)
+        layout.addWidget(self.heatmap)
 
         # 2. Main Content: Table + Side Detail
         content_h = QHBoxLayout()
@@ -219,6 +241,25 @@ class PortfolioWidget(QWidget):
         )
         self.lbl_detail_stats.setText(stats_text)
 
+    def on_toggle_heatmap(self):
+        is_visible = not self.heatmap.isVisible()
+        self.heatmap.setVisible(is_visible)
+        if is_visible:
+            self.update_heatmap_data()
+
+    def update_heatmap_data(self):
+        if not hasattr(self, 'model'): return
+        
+        heatmap_data = []
+        for item in self.model._data:
+            heatmap_data.append({
+                "ticker": item["ticker"],
+                "market_value": item["quantity"] * item["current_price"],
+                "change_pct": item["change_pct"],
+                "sector": item["sector"]
+            })
+        self.heatmap.set_data(heatmap_data)
+
     def refresh_data(self):
         """Fetch data from local SQLite and update the table with validation metrics."""
         print("[VALIDATION] Refreshing local portfolio data view...")
@@ -241,6 +282,7 @@ class PortfolioWidget(QWidget):
             
             self.model = PortfolioModel(data)
             self.table_view.setModel(self.model)
+            self.update_heatmap_data()
             print("[VALIDATION] UI updated with new model data.")
 
     @asyncSlot()

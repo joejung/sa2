@@ -65,30 +65,65 @@ class AdvancedChartWidget(QWidget):
         """
         ohlc_data: List of tuples (index, open, close, low, high)
         """
-        # We don't want to clear EVERYTHING because we might want to keep indicators
-        # But for now, simple clear is safer
         self.plot_widget.clear()
-        self.indicators = {}
+        # Keep the data but remove items from plot
+        for name in self.indicators:
+            self.indicators[name]['item'] = None
         
         if not ohlc_data:
             return
 
         self.candle_item = CandlestickItem(ohlc_data)
         self.plot_widget.addItem(self.candle_item)
+        
+        # Re-add visible indicators
+        for name, info in self.indicators.items():
+            if info.get('visible', True):
+                self._plot_indicator(name)
 
-    def add_indicator(self, name, data, color=AppColors.PRIMARY):
+    def add_indicator(self, name, data, color=AppColors.PRIMARY, visible=True):
         """Add or update a line indicator (e.g. SMA)."""
         if name in self.indicators:
-            self.plot_widget.removeItem(self.indicators[name]['item'])
+            if self.indicators[name]['item']:
+                self.plot_widget.removeItem(self.indicators[name]['item'])
         
+        self.indicators[name] = {
+            'data': data, 
+            'item': None, 
+            'color': color, 
+            'visible': visible
+        }
+        
+        if visible:
+            self._plot_indicator(name)
+
+    def _plot_indicator(self, name):
+        info = self.indicators[name]
+        data = info['data']
         x = range(len(data))
-        item = self.plot_widget.plot(x, data, pen=pg.mkPen(color=color, width=1.5), name=name)
-        self.indicators[name] = {'data': data, 'item': item, 'color': color}
+        item = self.plot_widget.plot(x, data, pen=pg.mkPen(color=info['color'], width=1.5), name=name)
+        info['item'] = item
+
+    def set_indicator_visibility(self, name, visible):
+        if name in self.indicators:
+            self.indicators[name]['visible'] = visible
+            if visible:
+                if not self.indicators[name]['item']:
+                    self._plot_indicator(name)
+            else:
+                if self.indicators[name]['item']:
+                    self.plot_widget.removeItem(self.indicators[name]['item'])
+                    self.indicators[name]['item'] = None
 
     def remove_indicator(self, name):
         if name in self.indicators:
-            self.plot_widget.removeItem(self.indicators[name]['item'])
+            if self.indicators[name]['item']:
+                self.plot_widget.removeItem(self.indicators[name]['item'])
             del self.indicators[name]
+
+    def clear_indicators(self):
+        for name in list(self.indicators.keys()):
+            self.remove_indicator(name)
 
 class StockChartWidget(QWidget):
     """Reusable stock chart component using pyqtgraph."""

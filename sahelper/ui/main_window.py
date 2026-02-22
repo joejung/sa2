@@ -6,8 +6,9 @@ from .styles import AppStyles
 
 class SAHelperWindow(QMainWindow):
     """The main application shell."""
-    def __init__(self):
+    def __init__(self, alert_service=None):
         super().__init__()
+        self.alert_service = alert_service
         self.setWindowTitle("SAHelper - Enterprise Edition")
         self.setMinimumSize(1200, 800)
         self.setStyleSheet(AppStyles.MAIN_WINDOW) # Apply global styles
@@ -35,6 +36,7 @@ class SAHelperWindow(QMainWindow):
             "📈 Analysis", 
             "🔍 Screener",
             "🤖 Assistant",
+            "🔔 Alerts",
             "🤖 Automation", 
             "⚙️ Settings"
         ]
@@ -82,12 +84,20 @@ class SAHelperWindow(QMainWindow):
         from .ai_assistant import AICommandWorkspace
         self.view_assistant = AICommandWorkspace()
         self.content_stack.addWidget(self.view_assistant)
+        
+        # Connect AI Commands to UI Actions
+        self.view_assistant.service.command_detected.connect(self.on_ai_command)
 
-        # 6. Automation
+        # 6. Alerts View
+        from .alerts import AlertsWidget
+        self.view_alerts = AlertsWidget(self.alert_service)
+        self.content_stack.addWidget(self.view_alerts)
+
+        # 7. Automation
         self.view_automation = QWidget()
         self.content_stack.addWidget(self.view_automation)
 
-        # 7. Settings
+        # 8. Settings
         self.view_settings = QWidget()
         self.content_stack.addWidget(self.view_settings)
         
@@ -97,3 +107,20 @@ class SAHelperWindow(QMainWindow):
     def on_nav_changed(self, index: int):
         """Switch the main content view based on sidebar selection."""
         self.content_stack.setCurrentIndex(index)
+
+    def on_ai_command(self, command, arg):
+        """Handle agentic commands from the AI Assistant."""
+        if command == "chart":
+            # Switch to Analysis tab
+            self.sidebar.setCurrentRow(3)
+            self.view_analysis.set_ticker(arg)
+        elif command == "risk":
+            # Switch to Portfolio tab
+            self.sidebar.setCurrentRow(2)
+            # Trigger risk analysis if possible
+            if hasattr(self.view_portfolios, 'on_risk_clicked'):
+                self.view_portfolios.on_risk_clicked()
+        elif command == "screen":
+            # Switch to Screener
+            self.sidebar.setCurrentRow(4)
+            # We could automate filter setting here too

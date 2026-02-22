@@ -18,18 +18,18 @@ Targeting "Institutional Terminal" standards:
 ### UI/UX & Layout
 - [x] **Multi-Split Workspace Layout**: Implementation of a flexible `QSplitter` based system for AI Workspace (v1).
 - [x] **Interactive AI Assistant (Command Center)**: Integrated LLM chat/terminal for natural language querying (v1).
-- [ ] **Technical Indicators Toggle**: A UI sidebar in the Chart view to toggle EMA, RSI, MACD, and Bollinger Bands.
-- [ ] **Portfolio Heatmaps**: Sized-by-weight heatmaps for sector exposure and performance visualization.
+- [x] **Technical Indicators Toggle**: A UI sidebar in the Chart view to toggle EMA, RSI, MACD, and Bollinger Bands.
+- [x] **Portfolio Heatmaps**: Sized-by-weight heatmaps for sector exposure and performance visualization.
 
 ### Data & Analytics
-- [ ] **Global News Aggregator**: A dedicated macro news feed with keyword filtering and cross-source sentiment scoring.
-- [ ] **Advanced Screener Filters**: Technical signal filters (e.g., "Golden Cross", "RSI Oversold") and custom formula support.
+- [x] **Global News Aggregator**: A dedicated macro news feed with keyword filtering and cross-source sentiment scoring.
+- [x] **Advanced Screener Filters**: Technical signal filters (e.g., "Golden Cross", "RSI Oversold") and custom formula support.
 - [ ] **Historical Performance Attribution**: Tracking how individual trades contributed to portfolio P&L over time.
 - [ ] **Macro Event Calendar**: Integrated economic calendar (FED meetings, CPI releases) with impact alerts.
 
 ### Automation & Integration
-- [ ] **Seeking Alpha Cloud Sync (Refinement)**: Enhance Playwright automation for more robust handling of dynamic login modals.
-- [ ] **Alert Engine**: User-defined price/technical alerts with system tray notifications.
+- [x] **Seeking Alpha Cloud Sync (Refinement)**: Enhance Playwright automation for more robust handling of dynamic login modals.
+- [x] **Alert Engine**: User-defined price/technical alerts with system tray notifications.
 
 ---
 

@@ -53,6 +53,13 @@ class ScreenerWidget(QWidget):
         filter_layout.addWidget(QLabel("Min Yield:"))
         filter_layout.addWidget(self.spin_yield)
 
+        # Technical Signal
+        self.combo_signal = QComboBox()
+        self.combo_signal.addItems(["No Signal", "Golden Cross", "RSI Oversold", "Price > SMA50"])
+        self.combo_signal.setStyleSheet(AppStyles.INPUT)
+        filter_layout.addWidget(QLabel("Signal:"))
+        filter_layout.addWidget(self.combo_signal)
+
         # Run Button
         self.btn_run = QPushButton("Run Screen")
         self.btn_run.clicked.connect(self.run_screener)
@@ -127,60 +134,87 @@ class ScreenerWidget(QWidget):
 
     async def _scan_stocks(self):
         try:
-            # Universe of stocks to scan (Top 20 + some randoms for demo)
+            # Universe of stocks to scan
             universe = [
                 "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "TSLA", "META", "JPM", "V", "JNJ",
                 "WMT", "PG", "XOM", "MA", "UNH", "HD", "CVX", "KO", "MRK", "PEP",
-                "T", "VZ", "INTC", "CSCO", "PFE", "BAC"
+                "T", "VZ", "INTC", "CSCO", "PFE", "BAC", "AMD", "NFLX", "ADBE", "CRM"
             ]
             
             loop = asyncio.get_event_loop()
+            target_signal = self.combo_signal.currentText()
             
-            # Use 'tickers' property which fetches info for multiple efficiently? 
-            # yfinance Tickers object is good.
-            tickers = yf.Tickers(" ".join(universe))
+            # Fetch data efficiently
+            def fetch_all():
+                data = {}
+                # yf.download is faster for multiple tickers history
+                # We need enough history for SMA200 (approx 1 year)
+                hist = yf.download(universe, period="1y", group_by='ticker', silent=True)
+                
+                # Also fetch info for fundamentals
+                # Info is slow, so we only fetch it for tickers that pass technical filter?
+                # For this demo, let's just fetch all info in one go if possible
+                tickers_obj = yf.Tickers(" ".join(universe))
+                return hist, tickers_obj.tickers
+
+            hist_data, tickers_dict = await loop.run_in_executor(None, fetch_all)
             
             results = []
-            
-            # Fetch info in thread
-            def fetch_info():
-                data = []
-                for symbol in universe:
-                    try:
-                        t = tickers.tickers[symbol]
-                        info = t.info
-                        data.append(info)
-                    except:
-                        pass
-                return data
-
-            stock_infos = await loop.run_in_executor(None, fetch_info)
-            
-            # Filter
             target_sector = self.combo_sector.currentText()
             max_pe = self.spin_pe.value()
             min_yield = self.spin_yield.value() / 100.0
             
-            for info in stock_infos:
-                symbol = info.get('symbol', '')
-                sector = info.get('sector', 'Unknown')
-                pe = info.get('trailingPE', 999)
-                div_yield = info.get('dividendYield', 0) or 0
-                
-                if target_sector != "All Sectors" and sector != target_sector:
-                    continue
-                if pe > max_pe:
-                    continue
-                if div_yield < min_yield:
-                    continue
+            for symbol in universe:
+                try:
+                    # 1. Technical Filter
+                    df = hist_data[symbol]
+                    if df.empty: continue
                     
-                results.append({
-                    "Ticker": symbol,
-                    "Name": info.get('shortName', ''),
-                    "Price": f"${info.get('currentPrice', 0):.2f}",
-                    "P/E": f"{pe:.2f}",
-                    "Yield": f"{div_yield*100:.2f}%"
-                })
+                    passed_tech = True
+                    if target_signal == "Golden Cross":
+                        sma50 = df['Close'].rolling(window=50).mean()
+                        sma200 = df['Close'].rolling(window=200).mean()
+                        # Cross today or yesterday
+                        if not (sma50.iloc[-1] > sma200.iloc[-1] and sma50.iloc[-2] <= sma200.iloc[-2]):
+                            passed_tech = False
+                    elif target_signal == "RSI Oversold":
+                        delta = df['Close'].diff()
+                        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+                        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+                        rs = gain / loss
+                        rsi = 100 - (100 / (1 + rs))
+                        if rsi.iloc[-1] >= 30:
+                            passed_tech = False
+                    elif target_signal == "Price > SMA50":
+                        sma50 = df['Close'].rolling(window=50).mean()
+                        if df['Close'].iloc[-1] <= sma50.iloc[-1]:
+                            passed_tech = False
+                    
+                    if not passed_tech: continue
+
+                    # 2. Fundamental Filter
+                    info = tickers_dict[symbol].info
+                    sector = info.get('sector', 'Unknown')
+                    pe = info.get('trailingPE', 999)
+                    div_yield = info.get('dividendYield', 0) or 0
+                    
+                    if target_sector != "All Sectors" and sector != target_sector:
+                        continue
+                    if pe > max_pe:
+                        continue
+                    if div_yield < min_yield:
+                        continue
+                        
+                    results.append({
+                        "Ticker": symbol,
+                        "Name": info.get('shortName', ''),
+                        "Price": f"${info.get('currentPrice', 0):.2f}",
+                        "P/E": f"{pe:.2f}",
+                        "Yield": f"{div_yield*100:.2f}%"
+                    })
+                except Exception as e:
+                    print(f"Error scanning {symbol}: {e}")
+                    continue
             
             # Update UI
             self.table.setRowCount(len(results))

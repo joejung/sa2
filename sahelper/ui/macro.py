@@ -52,16 +52,13 @@ class MacroWidget(QWidget):
         self.indices_layout.setSpacing(15)
         layout.addLayout(self.indices_layout)
         
-        # 3. Macro Sector Heatmap (Placeholder)
-        layout.addWidget(QLabel("SECTOR PERFORMANCE (ATTRIBUTION)"))
-        heatmap_frame = QFrame()
-        heatmap_frame.setMinimumHeight(250)
-        heatmap_frame.setStyleSheet(f"background-color: {AppColors.BG_CARD}; border: 1px solid {AppColors.BORDER}; border-radius: 8px;")
-        h_layout = QHBoxLayout(heatmap_frame)
-        h_layout.addWidget(QLabel("Interactive Sector Map Placeholder"), alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(heatmap_frame)
+        # 3. Global News Feed
+        from .news_feed import GlobalNewsWidget
+        self.news_feed = GlobalNewsWidget()
+        layout.addWidget(self.news_feed)
 
-        layout.addStretch()
+    def update_news(self, news):
+        self.news_feed.update_news(news)
 
     def _create_macro_card(self, name, ticker, value, change) -> QFrame:
         frame = QFrame()

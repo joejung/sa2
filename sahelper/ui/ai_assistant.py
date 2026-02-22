@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 class AIService(QObject):
     """Simulated AI service that processes natural language commands."""
     response_ready = pyqtSignal(str, str) # (request_id, response_markdown)
+    command_detected = pyqtSignal(str, str) # (command, argument)
 
     def __init__(self):
         super().__init__()
@@ -20,11 +21,23 @@ class AIService(QObject):
     async def process_query(self, query, request_id):
         """Mock AI logic: Analyze query and provide a professional financial response."""
         logger.info(f"AI processing query [{request_id}]: {query}")
-        await asyncio.sleep(1.5) # Simulate LLM latency
+        await asyncio.sleep(1.0) # Simulate LLM latency
         
         query_lower = query.lower()
         
-        if "portfolio" in query_lower or "risk" in query_lower:
+        # Command Detection
+        if query.startswith("/chart "):
+            ticker = query.split(" ")[1].upper()
+            self.command_detected.emit("chart", ticker)
+            response = f"Opening chart for **{ticker}**..."
+        elif query.startswith("/risk"):
+            self.command_detected.emit("risk", "")
+            response = "Generating Portfolio Risk Report..."
+        elif query.startswith("/screen "):
+            arg = " ".join(query.split(" ")[1:])
+            self.command_detected.emit("screen", arg)
+            response = f"Running screener for: *{arg}*..."
+        elif "portfolio" in query_lower or "risk" in query_lower:
             response = (
                 "### Portfolio Risk Assessment\n"
                 "Your portfolio has a **Beta of 1.15**, suggesting it's slightly more volatile than the market. "
@@ -62,7 +75,10 @@ class AIChatPanel(QFrame):
         super().__init__()
         self.service = service
         self.panel_id = panel_id
+        self.current_request_id = None
         self.init_ui()
+        # Connect once
+        self.service.response_ready.connect(self.on_response)
 
     def init_ui(self):
         self.setStyleSheet(f"""
@@ -115,20 +131,18 @@ class AIChatPanel(QFrame):
         self.input.setEnabled(False)
         
         # Unique ID for this specific panel's query
-        request_id = f"{self.panel_id}_{random.randint(1000, 9999)}"
-        # Use a lambda to check if the response belongs to this panel
-        self.service.response_ready.connect(lambda rid, resp: self.on_response(rid, resp, request_id))
-        
-        asyncio.create_task(self.service.process_query(query, request_id))
+        self.current_request_id = f"{self.panel_id}_{random.randint(1000, 9999)}"
+        asyncio.create_task(self.service.process_query(query, self.current_request_id))
 
-    def on_response(self, rid, response, target_id):
-        if rid == target_id:
+    def on_response(self, rid, response):
+        if rid == self.current_request_id:
             self.history.append(f"<div style='color: white; margin-top: 10px;'>{response}</div>")
             self.history.append("<hr style='border: 0; border-top: 1px solid #333;'>")
             self.input.setEnabled(True)
             self.input.setFocus()
             # Scroll to bottom
             self.history.verticalScrollBar().setValue(self.history.verticalScrollBar().maximum())
+            self.current_request_id = None
 
 class AICommandWorkspace(QWidget):
     """Workspace that manages multiple split AI chat panels."""

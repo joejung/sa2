@@ -46,8 +46,33 @@ class AnalysisService(QObject):
                 indicators = {
                     "SMA20": hist['Close'].rolling(window=20).mean().tolist(),
                     "SMA50": hist['Close'].rolling(window=50).mean().tolist(),
-                    "SMA200": hist['Close'].rolling(window=200).mean().tolist()
+                    "SMA200": hist['Close'].rolling(window=200).mean().tolist(),
+                    "EMA20": hist['Close'].ewm(span=20, adjust=False).mean().tolist()
                 }
+                
+                # RSI (14)
+                delta = hist['Close'].diff()
+                gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+                loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+                rs = gain / loss
+                indicators["RSI"] = (100 - (100 / (1 + rs))).tolist()
+
+                # MACD (12, 26, 9)
+                exp1 = hist['Close'].ewm(span=12, adjust=False).mean()
+                exp2 = hist['Close'].ewm(span=26, adjust=False).mean()
+                macd = exp1 - exp2
+                signal = macd.ewm(span=9, adjust=False).mean()
+                indicators["MACD"] = macd.tolist()
+                indicators["MACD_Signal"] = signal.tolist()
+                indicators["MACD_Hist"] = (macd - signal).tolist()
+
+                # Bollinger Bands (20, 2)
+                sma20 = hist['Close'].rolling(window=20).mean()
+                std20 = hist['Close'].rolling(window=20).std()
+                indicators["BB_Upper"] = (sma20 + (std20 * 2)).tolist()
+                indicators["BB_Lower"] = (sma20 - (std20 * 2)).tolist()
+                indicators["BB_Middle"] = sma20.tolist()
+
                 self.indicators_ready.emit(indicators)
             
             # 2. Fetch Fundamentals
