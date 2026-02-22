@@ -11,6 +11,7 @@ The following custom agents are available in `.gemini/agents/`:
 3. **tester**: Functional testing and validation expert.
 4. **requirer**: Requirements documentation expert.
 5. **fin_advisor**: Financial expert (CFO / Trading Advisor).
+6. **runtime**: Application lifecycle management expert.
 
 ## Functional Requirements
 - **Crawling eting alpha:** Use Playwright for crawling.
@@ -21,3 +22,4 @@ The following custom agents are available in `.gemini/agents/`:
 - **coding-rules**: Activated via `.gemini/skills/coding-rules/`.
 - **app-validator**: Activated via `.gemini/skills/app-validator/`.
 - **git-safety**: Activated via `.gemini/skills/git-safety/`.
+- **app-lifecycle**: Activated via `.gemini/skills/app-lifecycle/`.
