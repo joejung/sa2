@@ -33,8 +33,18 @@ def main():
 
     market_service = MarketDataService()
     alert_service = AlertService(market_service)
+    
+    from sahelper.services.calendar_service import CalendarService
+    calendar_service = CalendarService()
+    
+    from sahelper.services.attribution_service import AttributionService
+    attribution_service = AttributionService()
+    # Add some sample trades for demonstration
+    attribution_service.record_trade("SPY", 10, 480.0)
+    attribution_service.record_trade("NVDA", 5, 600.0)
+    attribution_service.record_trade("TSLA", 20, 190.0)
 
-    window = SAHelperWindow(alert_service=alert_service)
+    window = SAHelperWindow(alert_service=alert_service, attribution_service=attribution_service)
     window.show()
     
     def on_alert(ticker, cond, price):
@@ -53,6 +63,7 @@ def main():
     if hasattr(window, 'view_market'):
          market_service.data_updated.connect(window.view_market.update_macro_data)
          market_service.news_updated.connect(window.view_market.update_news)
+         calendar_service.events_ready.connect(window.view_market.update_calendar)
 
     # 2. Overview Dashboard
     def update_overview(data):
@@ -63,8 +74,10 @@ def main():
                  window.view_overview.update_performance(spy["history"])
     market_service.data_updated.connect(update_overview)
 
-    # Start Background Task
+    # Start Background Tasks
     loop.create_task(market_service.run_live_feed())
+    loop.create_task(calendar_service.fetch_events())
+    loop.create_task(attribution_service.calculate_attribution())
 
     with loop:
         loop.run_forever()

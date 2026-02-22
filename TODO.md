@@ -24,8 +24,8 @@ Targeting "Institutional Terminal" standards:
 ### Data & Analytics
 - [x] **Global News Aggregator**: A dedicated macro news feed with keyword filtering and cross-source sentiment scoring.
 - [x] **Advanced Screener Filters**: Technical signal filters (e.g., "Golden Cross", "RSI Oversold") and custom formula support.
-- [ ] **Historical Performance Attribution**: Tracking how individual trades contributed to portfolio P&L over time.
-- [ ] **Macro Event Calendar**: Integrated economic calendar (FED meetings, CPI releases) with impact alerts.
+- [x] **Historical Performance Attribution**: Tracking how individual trades contributed to portfolio P&L over time.
+- [x] **Macro Event Calendar**: Integrated economic calendar (FED meetings, CPI releases) with impact alerts.
 
 ### Automation & Integration
 - [x] **Seeking Alpha Cloud Sync (Refinement)**: Enhance Playwright automation for more robust handling of dynamic login modals.

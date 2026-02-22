@@ -6,9 +6,10 @@ from .styles import AppStyles
 
 class SAHelperWindow(QMainWindow):
     """The main application shell."""
-    def __init__(self, alert_service=None):
+    def __init__(self, alert_service=None, attribution_service=None):
         super().__init__()
         self.alert_service = alert_service
+        self.attribution_service = attribution_service
         self.setWindowTitle("SAHelper - Enterprise Edition")
         self.setMinimumSize(1200, 800)
         self.setStyleSheet(AppStyles.MAIN_WINDOW) # Apply global styles
@@ -33,6 +34,7 @@ class SAHelperWindow(QMainWindow):
             "📊 Overview", 
             "🌍 Market", 
             "💼 Portfolios", 
+            "🏆 Performance",
             "📈 Analysis", 
             "🔍 Screener",
             "🤖 Assistant",
@@ -70,17 +72,23 @@ class SAHelperWindow(QMainWindow):
         self.view_portfolios = PortfolioWidget()
         self.content_stack.addWidget(self.view_portfolios)
 
-        # 3. Analysis View
+        # 3. Performance View
+        from .performance import AttributionWidget
+        self.view_performance = AttributionWidget(self.attribution_service)
+        self.content_stack.addWidget(self.view_performance)
+        self.view_performance.service.attribution_ready.connect(self.view_performance.update_attribution)
+
+        # 4. Analysis View
         from .analysis import StockDetailWidget
         self.view_analysis = StockDetailWidget()
         self.content_stack.addWidget(self.view_analysis)
 
-        # 4. Screener View
+        # 5. Screener View
         from .screener import ScreenerWidget
         self.view_screener = ScreenerWidget()
         self.content_stack.addWidget(self.view_screener)
 
-        # 5. AI Assistant View
+        # 6. AI Assistant View
         from .ai_assistant import AICommandWorkspace
         self.view_assistant = AICommandWorkspace()
         self.content_stack.addWidget(self.view_assistant)
@@ -88,16 +96,16 @@ class SAHelperWindow(QMainWindow):
         # Connect AI Commands to UI Actions
         self.view_assistant.service.command_detected.connect(self.on_ai_command)
 
-        # 6. Alerts View
+        # 7. Alerts View
         from .alerts import AlertsWidget
         self.view_alerts = AlertsWidget(self.alert_service)
         self.content_stack.addWidget(self.view_alerts)
 
-        # 7. Automation
+        # 8. Automation
         self.view_automation = QWidget()
         self.content_stack.addWidget(self.view_automation)
 
-        # 8. Settings
+        # 9. Settings
         self.view_settings = QWidget()
         self.content_stack.addWidget(self.view_settings)
         
@@ -111,16 +119,16 @@ class SAHelperWindow(QMainWindow):
     def on_ai_command(self, command, arg):
         """Handle agentic commands from the AI Assistant."""
         if command == "chart":
-            # Switch to Analysis tab
-            self.sidebar.setCurrentRow(3)
+            # Switch to Analysis tab (now index 4)
+            self.sidebar.setCurrentRow(4)
             self.view_analysis.set_ticker(arg)
         elif command == "risk":
-            # Switch to Portfolio tab
+            # Switch to Portfolio tab (index 2)
             self.sidebar.setCurrentRow(2)
             # Trigger risk analysis if possible
             if hasattr(self.view_portfolios, 'on_risk_clicked'):
                 self.view_portfolios.on_risk_clicked()
         elif command == "screen":
-            # Switch to Screener
-            self.sidebar.setCurrentRow(4)
+            # Switch to Screener (index 5)
+            self.sidebar.setCurrentRow(5)
             # We could automate filter setting here too

@@ -62,3 +62,17 @@ class LogEntry(Base):
     level = Column(String(10))
     module = Column(String(50))
     message = Column(Text)
+
+class Trade(Base):
+    """Execution history for performance attribution."""
+    __tablename__ = 'trades'
+
+    id = Column(Integer, primary_key=True)
+    ticker = Column(String(10), nullable=False)
+    quantity = Column(Float, nullable=False) # Positive for BUY, Negative for SELL
+    price = Column(Float, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    commission = Column(Float, default=0.0)
+    
+    def __repr__(self):
+        return f"<Trade(ticker='{self.ticker}', qty={self.quantity}, price={self.price})>"

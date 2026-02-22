@@ -52,13 +52,27 @@ class MacroWidget(QWidget):
         self.indices_layout.setSpacing(15)
         layout.addLayout(self.indices_layout)
         
-        # 3. Global News Feed
+        # 3. Bottom Sections: News and Calendar
+        bottom_h = QHBoxLayout()
+        bottom_h.setSpacing(20)
+
+        # Global News Feed
         from .news_feed import GlobalNewsWidget
         self.news_feed = GlobalNewsWidget()
-        layout.addWidget(self.news_feed)
+        bottom_h.addWidget(self.news_feed, 1)
+
+        # Economic Calendar
+        from .calendar import MacroCalendarWidget
+        self.calendar = MacroCalendarWidget()
+        bottom_h.addWidget(self.calendar, 1)
+
+        layout.addLayout(bottom_h)
 
     def update_news(self, news):
         self.news_feed.update_news(news)
+
+    def update_calendar(self, events):
+        self.calendar.update_events(events)
 
     def _create_macro_card(self, name, ticker, value, change) -> QFrame:
         frame = QFrame()
