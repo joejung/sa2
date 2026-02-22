@@ -11,6 +11,8 @@ class AppColors:
     PRIMARY = "#007acc"       # VS Code Blue / Main Action
     ACCENT_GREEN = "#00c853"  # Success / Gain
     ACCENT_RED = "#ff3d00"    # Error / Loss
+    ACCENT_BLUE = "#2979ff"   # Info / Action
+    ACCENT_YELLOW = "#ffd600" # Warning
     
     # Text
     TEXT_PRIMARY = "#ffffff"

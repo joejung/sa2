@@ -10,6 +10,7 @@ The following custom agents are available in `.gemini/agents/`:
 2. **refactorer**: SW design and clean code expert.
 3. **tester**: Functional testing and validation expert.
 4. **requirer**: Requirements documentation expert.
+5. **fin_advisor**: Financial expert (CFO / Trading Advisor).
 
 ## Functional Requirements
 - **Crawling eting alpha:** Use Playwright for crawling.

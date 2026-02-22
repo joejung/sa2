@@ -33,6 +33,8 @@ class SAHelperWindow(QMainWindow):
             "🌍 Market", 
             "💼 Portfolios", 
             "📈 Analysis", 
+            "🔍 Screener",
+            "🤖 Assistant",
             "🤖 Automation", 
             "⚙️ Settings"
         ]
@@ -71,11 +73,21 @@ class SAHelperWindow(QMainWindow):
         self.view_analysis = StockDetailWidget()
         self.content_stack.addWidget(self.view_analysis)
 
-        # 4. Automation
+        # 4. Screener View
+        from .screener import ScreenerWidget
+        self.view_screener = ScreenerWidget()
+        self.content_stack.addWidget(self.view_screener)
+
+        # 5. AI Assistant View
+        from .ai_assistant import AICommandWorkspace
+        self.view_assistant = AICommandWorkspace()
+        self.content_stack.addWidget(self.view_assistant)
+
+        # 6. Automation
         self.view_automation = QWidget()
         self.content_stack.addWidget(self.view_automation)
 
-        # 5. Settings
+        # 7. Settings
         self.view_settings = QWidget()
         self.content_stack.addWidget(self.view_settings)
         

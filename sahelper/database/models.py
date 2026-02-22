@@ -46,6 +46,8 @@ class StockData(Base):
     daily_change_pct = Column(Float)
     pe_ratio = Column(Float)
     dividend_yield = Column(Float)
+    sector = Column(String(50))
+    rating = Column(String(20))
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self):

@@ -1,8 +1,8 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QHeaderView, QTableView, 
-    QPushButton, QLineEdit, QLabel, QFrame
+    QPushButton, QLineEdit, QLabel, QFrame, QMessageBox
 )
-from PyQt6.QtCore import Qt, QAbstractTableModel, QModelIndex
+from PyQt6.QtCore import Qt, QAbstractTableModel, QModelIndex, pyqtSlot
 
 class PortfolioModel(QAbstractTableModel):
     """Institutional Data model for the Portfolio Table View."""
@@ -68,6 +68,7 @@ class PortfolioModel(QAbstractTableModel):
 from sahelper.database.session import SessionLocal
 from sahelper.database.models import Holding, StockData
 from sahelper.services.automation import AutomationService
+from sahelper.services.risk_service import RiskService
 import asyncio
 from qasync import asyncSlot
 
@@ -78,6 +79,10 @@ class PortfolioWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.automator = AutomationService()
+        self.risk_service = RiskService()
+        self.risk_service.metrics_ready.connect(self.on_risk_metrics_ready)
+        self.risk_service.error_occurred.connect(self.on_risk_error)
+        
         self.init_ui()
         self.refresh_data()
 
@@ -106,6 +111,23 @@ class PortfolioWidget(QWidget):
         self.btn_sync.clicked.connect(self.on_sync_clicked)
         self.btn_sync.setStyleSheet(AppStyles.BUTTON_PRIMARY)
         header_layout.addWidget(self.btn_sync)
+
+        self.btn_risk = QPushButton("Run Risk Analysis")
+        self.btn_risk.clicked.connect(self.on_risk_clicked)
+        self.btn_risk.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {AppColors.ACCENT_BLUE};
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: #005a9e;
+            }}
+        """)
+        header_layout.addWidget(self.btn_risk)
 
         self.btn_clear = QPushButton("Clear All Data")
         self.btn_clear.clicked.connect(self.on_clear_clicked)
@@ -212,7 +234,9 @@ class PortfolioWidget(QWidget):
                     "quantity": h.quantity,
                     "avg_cost": h.avg_cost,
                     "current_price": stock.last_price if stock else 0.0,
-                    "change_pct": stock.daily_change_pct if stock else 0.0
+                    "change_pct": stock.daily_change_pct if stock else 0.0,
+                    "sector": stock.sector if stock and stock.sector else "N/A",
+                    "rating": stock.rating if stock and stock.rating else "HOLD"
                 })
             
             self.model = PortfolioModel(data)
@@ -276,3 +300,44 @@ class PortfolioWidget(QWidget):
         """Update the table with new holding data."""
         self.model = PortfolioModel(holdings)
         self.table_view.setModel(self.model)
+
+    def on_risk_clicked(self):
+        """Gather holdings and trigger risk calculation."""
+        self.btn_risk.setEnabled(False)
+        self.btn_risk.setText("Calculating Risk...")
+        
+        # Gather holdings from the model data
+        holdings = []
+        for item in self.model._data:
+            holdings.append({
+                "ticker": item["ticker"],
+                "value": item["quantity"] * item["current_price"]
+            })
+        
+        # Async call
+        asyncio.create_task(self.risk_service.calculate_risk(holdings))
+
+    @pyqtSlot(dict)
+    def on_risk_metrics_ready(self, metrics):
+        self.btn_risk.setEnabled(True)
+        self.btn_risk.setText("Run Risk Analysis")
+        
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Portfolio Risk Analysis")
+        msg.setText("<h3>Portfolio Risk Metrics (vs S&P 500)</h3>")
+        
+        details = (
+            f"<b>Total Value:</b> {metrics.get('Total Value')}<br>"
+            f"<b>Beta:</b> {metrics.get('Beta')} (Market Volatility)<br>"
+            f"<b>Sharpe Ratio:</b> {metrics.get('Sharpe Ratio')} (Risk-Adjusted Return)<br>"
+            f"<b>Max Drawdown:</b> {metrics.get('Max Drawdown')} (1Y Worst Loss)<br>"
+            f"<b>Volatility:</b> {metrics.get('Volatility')} (Annualized)<br>"
+        )
+        msg.setInformativeText(details)
+        msg.exec()
+
+    @pyqtSlot(str)
+    def on_risk_error(self, error):
+        self.btn_risk.setEnabled(True)
+        self.btn_risk.setText("Run Risk Analysis")
+        QMessageBox.critical(self, "Risk Analysis Error", f"Failed to calculate metrics: {error}")

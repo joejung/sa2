@@ -8,3 +8,4 @@ qt-material
 pytest
 pyqtgraph
 numpy
+yfinance

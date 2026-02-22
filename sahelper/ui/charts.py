@@ -1,8 +1,94 @@
 import pyqtgraph as pg
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
-from PyQt6.QtCore import Qt
-
+from PyQt6.QtCore import Qt, QRectF
+import numpy as np
 from .styles import AppColors
+
+class CandlestickItem(pg.GraphicsObject):
+    def __init__(self, data):
+        super().__init__()
+        self.data = data  # List of (time, open, close, low, high)
+        self.picture = None
+        self.generatePicture()
+
+    def generatePicture(self):
+        self.picture = from_qpicture = pg.QtGui.QPicture()
+        p = pg.QtGui.QPainter(self.picture)
+        p.setPen(pg.mkPen(AppColors.BORDER))
+        
+        w = 0.4  # Width of the candle
+        
+        for (t, open, close, low, high) in self.data:
+            if close > open:
+                p.setBrush(pg.mkBrush(AppColors.ACCENT_GREEN))
+                p.setPen(pg.mkPen(AppColors.ACCENT_GREEN))
+            else:
+                p.setBrush(pg.mkBrush(AppColors.ACCENT_RED))
+                p.setPen(pg.mkPen(AppColors.ACCENT_RED))
+                
+            # Draw the vertical line (High to Low)
+            p.drawLine(pg.QtCore.QPointF(t, low), pg.QtCore.QPointF(t, high))
+            
+            # Draw the body (Open to Close)
+            p.drawRect(pg.QtCore.QRectF(t - w, open, w * 2, close - open))
+            
+        p.end()
+
+    def paint(self, p, *args):
+        if self.picture:
+            self.picture.play(p)
+
+    def boundingRect(self):
+        return pg.QtCore.QRectF(self.picture.boundingRect())
+
+class AdvancedChartWidget(QWidget):
+    """Professional interactive chart with Candlesticks, Volume, and Indicators."""
+    def __init__(self, title=None):
+        super().__init__()
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.plot_widget = pg.PlotWidget(title=title)
+        self.plot_widget.setBackground(AppColors.BG_CARD)
+        self.plot_widget.showGrid(x=True, y=True, alpha=0.1)
+        
+        # Axis styling
+        self.plot_widget.getAxis('left').setPen(AppColors.TEXT_MUTED)
+        self.plot_widget.getAxis('bottom').setPen(AppColors.TEXT_MUTED)
+        
+        self.candle_item = None
+        self.indicators = {} # { name: { 'data': [], 'item': PlotDataItem, 'color': str } }
+        
+        layout.addWidget(self.plot_widget)
+        
+    def set_data(self, ohlc_data):
+        """
+        ohlc_data: List of tuples (index, open, close, low, high)
+        """
+        # We don't want to clear EVERYTHING because we might want to keep indicators
+        # But for now, simple clear is safer
+        self.plot_widget.clear()
+        self.indicators = {}
+        
+        if not ohlc_data:
+            return
+
+        self.candle_item = CandlestickItem(ohlc_data)
+        self.plot_widget.addItem(self.candle_item)
+
+    def add_indicator(self, name, data, color=AppColors.PRIMARY):
+        """Add or update a line indicator (e.g. SMA)."""
+        if name in self.indicators:
+            self.plot_widget.removeItem(self.indicators[name]['item'])
+        
+        x = range(len(data))
+        item = self.plot_widget.plot(x, data, pen=pg.mkPen(color=color, width=1.5), name=name)
+        self.indicators[name] = {'data': data, 'item': item, 'color': color}
+
+    def remove_indicator(self, name):
+        if name in self.indicators:
+            self.plot_widget.removeItem(self.indicators[name]['item'])
+            del self.indicators[name]
 
 class StockChartWidget(QWidget):
     """Reusable stock chart component using pyqtgraph."""

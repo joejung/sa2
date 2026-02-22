@@ -10,6 +10,9 @@ from dotenv import load_dotenv
 
 from sahelper.utils.logger import app_logger as logger
 
+# Load environment variables from .env if present
+load_dotenv()
+
 # ── Constants ──────────────────────────────────────────────────────────────────
 SA_BASE          = "https://seekingalpha.com"
 SA_PORTFOLIOS    = f"{SA_BASE}/account/portfolios"
@@ -223,26 +226,6 @@ class AutomationService:
                     session.add(portfolio)
                     session.flush()
                 
-                session.query(Holding).filter_by(portfolio_id=portfolio.id).delete()
-                for ticker in tickers:
-                    holding = Holding(ticker=ticker, portfolio_id=portfolio.id, quantity=1.0)
-                    session.add(holding)
-                session.commit()
-            return True
-        except Exception as db_e:
-            self._log(f"Database error: {db_e}")
-            return False
-
-        try:
-            from sahelper.database.session import SessionLocal
-            from sahelper.database.models import Holding, Portfolio
-            with SessionLocal() as session:
-                portfolio = session.query(Portfolio).filter_by(name="My Portfolio").first()
-                if not portfolio:
-                    portfolio = Portfolio(name="My Portfolio")
-                    session.add(portfolio)
-                    session.flush()
-                
                 # Clear old holdings for accurate sync
                 session.query(Holding).filter_by(portfolio_id=portfolio.id).delete()
                 
@@ -254,6 +237,8 @@ class AutomationService:
         except Exception as db_e:
             self._log(f"Database update error: {db_e}")
             return False
+        finally:
+            await self.stop()
 
     async def stop(self):
         if self.browser_context: await self.browser_context.close()
