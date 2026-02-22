@@ -5,7 +5,7 @@ This skill provides protocols for managing the application's runtime state (star
 ## Protocols
 
 1.  **Launch Application:**
-    - Use `run_shell_command` with `command="run_mak.cmd"` and `is_background=True`.
+    - Use `run_shell_command` with `command="run_sa.cmd"` and `is_background=True`.
     - Always verify if the process started by checking the tool output for Background PIDs.
 
 2.  **Terminate Application (Windows):**
