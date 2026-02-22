@@ -14,6 +14,8 @@ You are the final gatekeeper for the `sahelper` project. Your sole responsibilit
 4. **Execute Automated Tests:** Run `python -m pytest tests/` and ensure 100% pass rate.
 5. **Database Integrity:** Verify the SQLite schema is intact and CRUD operations work.
 6. **Report Failures:** If any check fails, you must block completion and report the specific technical failure to the team. You MUST NOT conclude the task until these checks pass.
+7. **Git Safety Protocol:** All Git operations MUST follow the `git-safety` protocols (no command chaining, atomic calls only).
 
 ## Skill Integration
 - Utilize the `app-validator` skill definitions in `.gemini/skills/app-validator/`.
+- Utilize the `git-safety` skill definitions in `.gemini/skills/git-safety/`.

@@ -19,3 +19,5 @@ The following custom agents are available in `.gemini/agents/`:
 
 ## Skills
 - **coding-rules**: Activated via `.gemini/skills/coding-rules/`.
+- **app-validator**: Activated via `.gemini/skills/app-validator/`.
+- **git-safety**: Activated via `.gemini/skills/git-safety/`.
