@@ -23,3 +23,4 @@ The following custom agents are available in `.gemini/agents/`:
 - **app-validator**: Activated via `.gemini/skills/app-validator/`.
 - **git-safety**: Activated via `.gemini/skills/git-safety/`.
 - **app-lifecycle**: Activated via `.gemini/skills/app-lifecycle/`.
+- **build-integrity**: Activated via `.gemini/skills/build-integrity/`.
